@@ -245,6 +245,17 @@ config AD7793
 	  To compile this driver as a module, choose M here: the
 	  module will be called AD7793.
 
+config AD5592R
+tristate "Analog Devices AD5592R driver (Summer Practice)"
+	depends on SPI
+	select IIO_BUFFER
+	help
+	  Say yes here to build support for Analog Devices AD5592R 
+	  SPI analog to digital converter (ADC).
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called AD5592R.
+
 config AD7887
 	tristate "Analog Devices AD7887 ADC driver"
 	depends on SPI
