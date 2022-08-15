@@ -121,9 +121,24 @@ static int adi_ad5592r_write_raw(struct iio_dev *indio_dev,
 
 	return -EINVAL;
 }
+
+static int adi_ad5592r_reg_access(struct iio_dev *indio_dev,
+				  unsigned int reg,
+				  unsigned int tx_val,
+				  unsigned int *rx_val)
+{
+	struct adi_ad5592r_state *st = iio_priv(indio_dev);
+
+	if (rx_val)
+		return adi_ad5592r_read_ctr(st, reg, (u16 *)rx_val);
+
+	return adi_ad5592r_write_ctr(st, reg, tx_val);
+}
+
 static const struct iio_info adi_ad5592r_info = {
 	.read_raw = &adi_ad5592r_read_raw,
 	.write_raw = &adi_ad5592r_write_raw,
+	.debugfs_reg_access = &adi_ad5592r_reg_access
 };
 
 static const struct iio_chan_spec adi_ad5592r_channels[] = {
