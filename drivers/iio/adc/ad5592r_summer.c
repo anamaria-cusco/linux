@@ -172,10 +172,53 @@ static const struct iio_chan_spec adi_ad5592r_channels[] = {
 	},
 };
 
+static int adi_ad5592r_init(struct adi_ad5592r_state *st)
+{
+	int ret;
+	u16 tmp;
+
+	// reset
+	ret = adi_ad5592r_write_ctr(st, ADI_AD5592R_REG_RST,
+				    ADI_AD5592R_RST_VAL);
+	if(ret)
+	{
+		dev_err(&st->spi->dev, "Reset failed");
+		return ret;
+	}
+	usleep_range(250, 300);
+	
+	ret = adi_ad5592r_write_ctr(st, ADI_AD5592R_REG_ADC_PIN_CFG,
+				    ADI_AD5592R_ADC_PINS);
+	if(ret)
+	{
+		dev_err(&st->spi->dev, "ADC set pin failed");
+		return ret;
+	}
+
+	ret = adi_ad5592r_write_ctr(st, ADI_AD5592R_REG_PD,
+				    ADI_AD5592R_PD_EN_REF);
+	if(ret)
+	{
+		dev_err(&st->spi->dev, "Ext ref set pin failed");
+		return ret;
+	}
+
+	ret = adi_ad5592r_read_ctr(st, ADI_AD5592R_REG_ADC_PIN_CFG, &tmp);
+	if(ret)
+	{
+		dev_err(&st->spi->dev, "ADC set pin failed");
+		return ret;
+	}
+
+	dev_info(&st->spi->dev, "tmp = 0x%x", tmp);
+	return 0;
+}
+
 static int adi_ad5592r_probe(struct spi_device *spi)
 {
 	struct iio_dev *indio_dev;
 	struct adi_ad5592r_state *st;
+	int ret;
 
 	indio_dev = devm_iio_device_alloc(&spi->dev, sizeof(*st));
 	if(!indio_dev)
@@ -190,6 +233,14 @@ static int adi_ad5592r_probe(struct spi_device *spi)
 	indio_dev->info = &adi_ad5592r_info;
 
 	st->spi = spi;
+
+	ret = adi_ad5592r_init(st);
+	if(ret)
+	{
+		dev_err(&spi->dev, "Init failed");
+		return ret;
+	}
+
 	dev_info(&spi->dev, "ad5592r Probed");
 
 	return devm_iio_device_register(&spi->dev, indio_dev);
