@@ -11,12 +11,11 @@
 #include <linux/spi/spi.h>
 #include <asm/unaligned.h>
 
-#define ADI_AD5592R_REG_READBACK        0x7
-#define   ADI_AD5592R_MASK_RB_EN        BIT(6)
-#define   ADI_AD5592R_MASK_REG_RB       GENMASK(5, 2)
-#define ADI_AD5592R_REG_RESET           0xF
-#define ADI_AD5592R_VAL_RESET           0x5AC
-
+#define ADI_AD5592R_REG_READBACK 0x7
+#define ADI_AD5592R_MASK_RB_EN BIT(6)
+#define ADI_AD5592R_MASK_REG_RB GENMASK(5, 2)
+#define ADI_AD5592R_REG_RESET 0xF
+#define ADI_AD5592R_VAL_RESET 0x5AC
 
 #define ADI_AD5592R_ADDR_MASK GENMASK(14, 11)
 #define ADI_AD5592R_VAL_MASK GENMASK(10, 0)
@@ -32,9 +31,7 @@ adi_ad5592r_write_ctr(st, 0xF,0x5AC);
 OxAC7D
 */
 
-static int adi_ad5592r_write_ctrl(struct adi_ad5592r_state *st, 
-                                u8 reg, 
-                                u16 val)
+static int adi_ad5592r_write_ctrl(struct adi_ad5592r_state *st, u8 reg, u16 val)
 {
 	u16 msg = 0;
 	__be16 tx;
@@ -46,52 +43,51 @@ static int adi_ad5592r_write_ctrl(struct adi_ad5592r_state *st,
 
 	put_unaligned_be16(msg, &tx);
 
-	return spi_write(st->spi, &msg, sizeof(msg));
+	return spi_write(st->spi, &tx, sizeof(tx));
 }
 
 //define NOP write
 static int adi_ad5592r_nop(struct adi_ad5592r_state *st, __be16 *rx)
 {
-        struct spi_transfer xfer = {
-                .tx_buf = 0,
-                .rx_buf = rx,
-                .len = 2,
-        };
+	struct spi_transfer xfer = {
+		.tx_buf = 0,
+		.rx_buf = rx,
+		.len = 2,
+	};
 
-        return spi_sync_transfer(st->spi, &xfer, 1); //how many messeges xfer will be transmitted
+	return spi_sync_transfer(
+		st->spi, &xfer, 1); //how many messeges xfer will be transmitted
 }
-static int adi_ad5592r_read_ctrl(struct adi_ad5592r_state *st, 
-                                u8 reg, 
-                                u16 *val)
+static int adi_ad5592r_read_ctrl(struct adi_ad5592r_state *st, u8 reg, u16 *val)
 {
-        u16 msg;
-        __be16 tx;
-        __be16 rx;
-        int ret;
+	u16 msg = 0;
+	__be16 tx;
+	__be16 rx;
+	int ret;
 
-        msg |= FIELD_PREP(ADI_AD5592R_ADDR_MASK, ADI_AD5592R_REG_READBACK);
-        msg |= ADI_AD5592R_MASK_RB_EN;
-        msg |= FIELD_PREP(ADI_AD5592R_MASK_REG_RB, reg);
+	msg |= FIELD_PREP(ADI_AD5592R_ADDR_MASK, ADI_AD5592R_REG_READBACK);
+	msg |= ADI_AD5592R_MASK_RB_EN;
+	msg |= FIELD_PREP(ADI_AD5592R_MASK_REG_RB, reg);
 
-        put_unaligned_be16(msg, &tx);
+	put_unaligned_be16(msg, &tx);
 
-        ret = spi_write(st->spi, &msg, sizeof(msg));
-        if(!ret){
-                dev_err(&st->spi->dev, "Fail to read ctrl reg at SPI write");
-                return ret;
-        }
+	ret = spi_write(st->spi, &tx, sizeof(tx));
+	if (ret) {
+		dev_err(&st->spi->dev,
+			"Fail to read ctrl reg at SPI write");
+		return ret;
+	}
 
-        ret = adi_ad5592r_nop(st, &rx);
+	ret = adi_ad5592r_nop(st, &rx);
 
-        if(!ret){
-                dev_err(&st->spi->dev, "Fail to read ctrl reg at nop");
-                return ret;
-        }
+	if (ret) {
+		dev_err(&st->spi->dev, "Fail to read ctrl reg at nop");
+		return ret;
+	}
 
-        *val = get_unaligned_be16(&rx);
+	*val = get_unaligned_be16(&rx);
 
-        return 0;
-
+	return 0;
 }
 
 int ad5592r_read_raw(struct iio_dev *indio_dev,
@@ -126,31 +122,29 @@ int ad5592r_write_raw(struct iio_dev *indio_dev,
 {
 	return 0;
 }
-static int adi_ad5592r_reg_access(struct iio_dev *indio_dev,
-				  unsigned reg, unsigned writeval,
-				  unsigned *readval)
+static int adi_ad5592r_reg_access(struct iio_dev *indio_dev, unsigned reg,
+				  unsigned writeval, unsigned *readval)
 {
-        struct adi_ad5592r_state *st = iio_priv(indio_dev);
-        u16 read;
-        int ret;
+	struct adi_ad5592r_state *st = iio_priv(indio_dev);
+	u16 read;
+	int ret;
 
-        if(readval){
-                ret = adi_ad5592r_read_ctrl(st, reg, &read);
-                if(ret){
-                        dev_err(&st->spi->dev, "DBG read failed");
-                        return ret;
-                }
-                dev_info(&st->spi->dev, "Read reg = %x\n", read);
-                *readval = read;
-                return ret;
-
-        }
-        return adi_ad5592r_write_ctrl(st, reg, writeval);
+	if (readval) {
+		ret = adi_ad5592r_read_ctrl(st, reg, &read);
+		if (ret) {
+			dev_err(&st->spi->dev, "DBG read failed");
+			return ret;
+		}
+		dev_info(&st->spi->dev, "read reg = 0x%x", read);
+		*readval = read;
+		return ret;
+	}
+	return adi_ad5592r_write_ctrl(st, reg, writeval);
 }
 static const struct iio_info ad5592r_info = {
 	.read_raw = &ad5592r_read_raw,
 	.write_raw = &ad5592r_write_raw,
-        .debugfs_reg_access = &adi_ad5592r_reg_access,
+	.debugfs_reg_access = &adi_ad5592r_reg_access,
 };
 
 static const struct iio_chan_spec ad5592r_channels[] = {
@@ -193,26 +187,25 @@ static const struct iio_chan_spec ad5592r_channels[] = {
 };
 static int adi_ad5592r_init(struct iio_dev *indio_dev)
 {
-        struct adi_ad5592r_state *st=iio_priv(indio_dev);
-        int ret;
+	struct adi_ad5592r_state *st = iio_priv(indio_dev);
+	int ret;
 
-        //reset
-        ret=adi_ad5592r_write_ctrl(st, ADI_AD5592R_REG_RESET,
-                                   ADI_AD5592R_VAL_RESET);
-        if(ret)
-        {
-                dev_err(&st->spi->dev, "Reset Failed");
-                return ret;
-        }
-        usleep_range(250,300);
+	//reset
+	ret = adi_ad5592r_write_ctrl(st, ADI_AD5592R_REG_RESET,
+				     ADI_AD5592R_VAL_RESET);
+	if (ret) {
+		dev_err(&st->spi->dev, "Reset Failed");
+		return ret;
+	}
+	usleep_range(250, 300);
 
-        return 0;
+	return 0;
 }
 static int ad5592r_probe(struct spi_device *spi)
 {
 	struct iio_dev *indio_dev;
 	struct adi_ad5592r_state *st;
-        int ret;
+	int ret;
 
 	indio_dev = devm_iio_device_alloc(&spi->dev, sizeof(*st));
 
@@ -228,12 +221,11 @@ static int ad5592r_probe(struct spi_device *spi)
 
 	st->spi = spi;
 
-        ret= adi_ad5592r_init(indio_dev);
-        if(ret)
-        {
-                dev_err(&st->spi->dev, "Init Failed");
-                return ret;
-        }
+	ret = adi_ad5592r_init(indio_dev);
+	if (ret) {
+		dev_err(&st->spi->dev, "Init Failed");
+		return ret;
+	}
 
 	dev_info(&spi->dev, "AD5592R Driver Probed!");
 
