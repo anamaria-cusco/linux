@@ -4,7 +4,7 @@
  *
  * Copyright (C) 2022 Analog Devices, Inc.
  */
-
+#include <linux/delay.h>
 #include <linux/bitfield.h>
 #include <linux/iio/iio.h>
 #include <linux/module.h>
@@ -14,6 +14,8 @@
 #define ADI_AD5592R_REG_READBACK        0x7
 #define   ADI_AD5592R_MASK_RB_EN        BIT(6)
 #define   ADI_AD5592R_MASK_REG_RB       GENMASK(5, 2)
+#define ADI_AD5592R_REG_RESET           0xF
+#define ADI_AD5592R_VAL_RESET           0x5AC
 
 
 #define ADI_AD5592R_ADDR_MASK GENMASK(14, 11)
@@ -74,16 +76,14 @@ static int adi_ad5592r_read_ctrl(struct adi_ad5592r_state *st,
         put_unaligned_be16(msg, &tx);
 
         ret = spi_write(st->spi, &msg, sizeof(msg));
-        if(!ret)
-        {
+        if(!ret){
                 dev_err(&st->spi->dev, "Fail to read ctrl reg at SPI write");
                 return ret;
         }
 
         ret = adi_ad5592r_nop(st, &rx);
 
-        if(!ret)
-        {
+        if(!ret){
                 dev_err(&st->spi->dev, "Fail to read ctrl reg at nop");
                 return ret;
         }
@@ -126,10 +126,31 @@ int ad5592r_write_raw(struct iio_dev *indio_dev,
 {
 	return 0;
 }
+static int adi_ad5592r_reg_access(struct iio_dev *indio_dev,
+				  unsigned reg, unsigned writeval,
+				  unsigned *readval)
+{
+        struct adi_ad5592r_state *st = iio_priv(indio_dev);
+        u16 read;
+        int ret;
 
+        if(readval){
+                ret = adi_ad5592r_read_ctrl(st, reg, &read);
+                if(ret){
+                        dev_err(&st->spi->dev, "DBG read failed");
+                        return ret;
+                }
+                dev_info(&st->spi->dev, "Read reg = %x\n", read);
+                *readval = read;
+                return ret;
+
+        }
+        return adi_ad5592r_write_ctrl(st, reg, writeval);
+}
 static const struct iio_info ad5592r_info = {
 	.read_raw = &ad5592r_read_raw,
 	.write_raw = &ad5592r_write_raw,
+        .debugfs_reg_access = &adi_ad5592r_reg_access,
 };
 
 static const struct iio_chan_spec ad5592r_channels[] = {
@@ -170,11 +191,28 @@ static const struct iio_chan_spec ad5592r_channels[] = {
 		.info_mask_shared_by_all = BIT(IIO_CHAN_INFO_HARDWAREGAIN),
 	},
 };
+static int adi_ad5592r_init(struct iio_dev *indio_dev)
+{
+        struct adi_ad5592r_state *st=iio_priv(indio_dev);
+        int ret;
 
+        //reset
+        ret=adi_ad5592r_write_ctrl(st, ADI_AD5592R_REG_RESET,
+                                   ADI_AD5592R_VAL_RESET);
+        if(ret)
+        {
+                dev_err(&st->spi->dev, "Reset Failed");
+                return ret;
+        }
+        usleep_range(250,300);
+
+        return 0;
+}
 static int ad5592r_probe(struct spi_device *spi)
 {
 	struct iio_dev *indio_dev;
 	struct adi_ad5592r_state *st;
+        int ret;
 
 	indio_dev = devm_iio_device_alloc(&spi->dev, sizeof(*st));
 
@@ -189,6 +227,13 @@ static int ad5592r_probe(struct spi_device *spi)
 	indio_dev->num_channels = ARRAY_SIZE(ad5592r_channels);
 
 	st->spi = spi;
+
+        ret= adi_ad5592r_init(indio_dev);
+        if(ret)
+        {
+                dev_err(&st->spi->dev, "Init Failed");
+                return ret;
+        }
 
 	dev_info(&spi->dev, "AD5592R Driver Probed!");
 
