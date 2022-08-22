@@ -253,8 +253,12 @@ static int ad5592r_read_raw(struct iio_dev *indio_dev,
 	switch (mask) {
 	case IIO_CHAN_INFO_RAW:
 		ret = adi_ad5592r_read_adc(indio_dev, chan->channel, (u16*)val);
-                if(ret)
+                if(ret){
+                        dev_err(&st->spi->dev, "Failed read raw");
                         return ret;
+                }
+                dev_info(&st->spi->dev, "Success read raw");
+                return IIO_VAL_INT;
         case IIO_CHAN_INFO_HARDWAREGAIN:
                 *val = st->double_gain;
 		return IIO_VAL_INT;
