@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 #include "versatile-pb.dts"
-
+#include <dt-bindings/gpio/gpio.h>
 / {
 	spi_adi_emu@0 {
 		compatible = "adi,spi-adi-emu";
@@ -13,4 +13,13 @@
 			spi-max-frequency = <1000000>;
 		};
 	};
+	
+	 gpio_adrf5740: adrf5740 {
+	      compatible = "adi,adrf5740";
+	      ctrl-gpios = <&gpio0 0 GPIO_ACTIVE_HIGH>,
+		<&gpio1 1 GPIO_ACTIVE_HIGH>,
+		<&gpio2 2 GPIO_ACTIVE_HIGH>,
+		<&gpio3 3 GPIO_ACTIVE_HIGH>;
+    };
+	
 };
