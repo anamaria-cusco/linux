@@ -349,7 +349,7 @@ static int adi_emu_probe(struct spi_device *spi)
 
 	devm_iio_triggered_buffer_setup(&spi->dev, indio_dev, NULL,
 			&adi_emu_trigger_handler, NULL);
-
+        dev_info(&indio_dev->dev, "IIO ADI EMU Driver Probed");
 	return devm_iio_device_register(&spi->dev, indio_dev);
 }
 
