@@ -27,7 +27,7 @@ struct  adrf5740_state {
 	// struct mutex lock; /* protect sensor state */
 	struct	adrf5740_chip_info *chip_info;
 	struct	gpio_descs *gpios;
-	u32	gain;
+	u32	raw_gain;
 };
 
 static const struct iio_chan_spec adrf5740_channels[] = {
@@ -46,7 +46,7 @@ static struct adrf5740_chip_info adrf5740_chip_info = {
 		.num_channels = ARRAY_SIZE(adrf5740_channels),
 		.num_gpios = 4,
 		.gain_min = 0,
-		.gain_max = 22000,
+		.gain_max = 22,
 		.default_gain = 0xB, /* set default gain -22dB*/
 };
 
@@ -58,15 +58,14 @@ static int adrf5740_read_raw(struct iio_dev *indio_dev,
 				long mask)
 {
         struct adrf5740_state *st = iio_priv(indio_dev);
-        int code, gain = 0;
+        int db_gain = 0;
 	
 
 	switch (mask) {
 	case IIO_CHAN_INFO_HARDWAREGAIN:
-                code = st->gain;
-                gain = code * -2000; /* 2dB/LSB */
-                *val = gain / 1000;
-		*val2 = (gain % 1000) * 1000; /* micro part */
+                db_gain = st->raw_gain * -2; /* 2dB/LSB */
+                *val = db_gain;
+                *val2 = 0;
                 return IIO_VAL_INT_PLUS_MICRO_DB;
 		
 	}
@@ -82,7 +81,7 @@ static int adrf5740_write(struct iio_dev *indio_dev, u32 value)
 
 	values[0] = value;
 
-        /* memory mapped vs or bus controlled */
+        /* memory mapped vs bus controlled */
 	gpiod_set_array_value_cansleep(st->gpios->ndescs, st->gpios->desc,
 				       NULL, values);
 	return 0;
@@ -96,23 +95,18 @@ static int adrf5740_write_raw(struct iio_dev *indio_dev,
 {
         struct adrf5740_state *st = iio_priv(indio_dev);
         struct adrf5740_chip_info *inf = st->chip_info;
-        int code = 0, gain;
+        int db_gain;
 	
-        /* round to the nearest greatest integer */
-	if (val < 0)
-		gain = (val * 1000) - (val2 / 1000);
-	else
-		gain = (val * 1000) + (val2 / 1000);
+        db_gain = val;
 
-	if (abs(gain) > inf->gain_max || abs(gain) < inf->gain_min)
+	if (abs(db_gain) > inf->gain_max || abs(db_gain) < inf->gain_min)
 		return -EINVAL;
         
         
 	switch (mask) {
 	case IIO_CHAN_INFO_HARDWAREGAIN:
-                code = (abs(gain) / 2000) & 0xF;
-                st->gain = code;
-                adrf5740_write(indio_dev, st->gain);
+                st->raw_gain = (abs(db_gain) / 2) & 0xF;
+                adrf5740_write(indio_dev, st->raw_gain);
 		return 0;
 	}
 
@@ -155,7 +149,7 @@ static int adrf5740_probe(struct platform_device *pdev){
 
         st = iio_priv(indio_dev);
         st->chip_info = &adrf5740_chip_info;
-        st->gain = st->chip_info->default_gain;
+        st->raw_gain = st->chip_info->default_gain;
        
         indio_dev->name = st->chip_info->name;
         indio_dev->info = &adrf5740_info;
