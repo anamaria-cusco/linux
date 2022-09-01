@@ -48,7 +48,7 @@ config ADA4250
 
 config ADRF5740
 	tristate "Analog Devices ADRF5740 Gain Amplifier"
-	depends on GPIOLIB
+	select GPIOLIB
 	help
 	  Say yes here to build support for Analog Devices ADRF5740
 	  Gain Amplifier support. The driver provides direct access via
