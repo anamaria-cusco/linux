@@ -6,11 +6,12 @@
  * Copyright 2022 Analog Devices Inc.
  */
 #include <linux/device.h>
-#include <linux/module.h>
-#include <linux/iio/iio.h>
-#include <linux/platform_device.h>
 #include <linux/err.h>
 #include <linux/gpio/consumer.h>
+#include <linux/iio/iio.h>
+#include <linux/module.h>
+#include <linux/platform_device.h>
+
 
 struct  adrf5740_chip_info {
         const char			*name;
