@@ -1,0 +1,22 @@
+// SPDX-License-Identifier: GPL-2.0
+/dts-v1/;
+/plugin/;
+
+/ {
+	compatible = "brcm,bcm2835";
+
+	fragment@0 {
+		target-path = "/";
+		__overlay__ {
+			gpio_adrf5740: adrf5740@0 {
+                                compatible = "adi,adrf5740";
+                                ctrl-gpios = <&gpio 5 0>,
+                                             <&gpio 6 0>,
+                                             <&gpio 13 0>,
+                                             <&gpio 19 0>;
+                                };
+		};
+	};
+};
+
+	
