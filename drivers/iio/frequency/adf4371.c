@@ -145,6 +145,7 @@ enum {
 
 enum adf4371_variant {
 	ADF4371,
+        ADF4371A,
 	ADF4372
 };
 
@@ -842,6 +843,10 @@ static const struct adf4371_chip_info adf4371_chip_info[] = {
 		.channels = adf4371_chan,
 		.num_channels = 4,
 	},
+        [ADF4371A] = {
+                .channels = adf4371_chan,
+		.num_channels = 1,
+        },
 	[ADF4372] = {
 		.channels = adf4371_chan,
 		.num_channels = 3,
@@ -1319,11 +1324,13 @@ static int adf4371_probe(struct spi_device *spi)
 	if (ret < 0)
 		return ret;
 
+        dev_info (&spi->dev, "adf4371 Driver Probed!\n");
 	return devm_iio_device_register(&spi->dev, indio_dev);
 }
 
 static const struct spi_device_id adf4371_id_table[] = {
 	{ "adf4371", ADF4371 },
+        { "adf4401a", ADF4371A},
 	{ "adf4372", ADF4372 },
 	{}
 };
@@ -1331,6 +1338,7 @@ MODULE_DEVICE_TABLE(spi, adf4371_id_table);
 
 static const struct of_device_id adf4371_of_match[] = {
 	{ .compatible = "adi,adf4371" },
+        { .compatible= "adi,adf4401a" },
 	{ .compatible = "adi,adf4372" },
 	{ },
 };
