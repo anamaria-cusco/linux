@@ -1,0 +1,47 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/iio/amplifiers/adi,adrf5740.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: ADRF5740 4-bit Digital Step Attenuator
+
+maintainers:
+  - Cusco Ana-Maria <anamaria_cusco@yahoo.com>
+
+
+description: |
+  The ADRF5740 is a silicon, 4-bit digital attenuator with 22 dB
+  attenuation control range in 2 dB steps, 10MHz to 60Mhz
+
+  https://www.analog.com/media/en/technical-documentation/data-sheets/adrf5740.pdf
+
+properties:
+  compatible:
+    enum:
+      - adi,adrf5740
+
+  ctrl-gpios:
+    description:
+      Must contain an array of 4 GPIO specifiers, referring to the GPIO pins
+      connected to the control pins D5-D2.
+    minItems: 4
+    maxItems: 4
+
+required:
+  - compatible
+  - ctrl-gpios
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/gpio/gpio.h>
+    gpio_adrf5740: adrf5740 {
+      compatible = "adi,adrf5740";
+      ctrl-gpios = <&gpio 4 GPIO_ACTIVE_HIGH>,
+        <&gpio 3 GPIO_ACTIVE_HIGH>,
+        <&gpio 2 GPIO_ACTIVE_HIGH>,
+        <&gpio 1 GPIO_ACTIVE_HIGH>;
+    };
+...
