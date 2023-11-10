@@ -1,0 +1,18 @@
+// SPDX-License-Identifier: GPL-2.0
+#include "versatile-pb.dts"
+
+/ {
+	/*
+	Describe how children devices of a parent node should be addressed
+	Type: u32, Name: #address-cells, #size-cells
+	#address-cells: number of u32 cells to encode address of reg property of child node
+	#size-cells: number of u32 cells to encode size of reg property of child node
+	Typically reg = <address size>, if size = 0 then reg = <address>
+	*/
+
+	spi_adi_emu@0 {
+		compatible = "adi,spi-adi-emu";
+		#address-cells = <1>;
+		#size-cells = <0>;
+	};
+};
