@@ -88,9 +88,22 @@ static int adi_emu_write_raw(struct iio_dev *indio_dev,
 	}
 }
 
+static int adi_emu_reg_access(struct iio_dev *indio_dev,
+			      unsigned reg, unsigned writeval,
+			      unsigned *readval)
+{
+	struct adi_emu_priv *priv = iio_priv(indio_dev);
+
+	if (readval)
+		return regmap_read(priv->regmap, reg, readval);
+
+	return regmap_write(priv->regmap, reg, writeval);
+}
+
 static const struct iio_info adi_emu_info = {
 	.read_raw = &adi_emu_read_raw,
 	.write_raw = &adi_emu_write_raw,
+	.debugfs_reg_access = &adi_emu_reg_access,
 };
 
 static const struct regmap_config adi_emu_regmap_config = {
