@@ -10,6 +10,9 @@
 #include <linux/iio/iio.h>
 /* IIO sysfs support */
 #include <linux/iio/sysfs.h> 
+#include <linux/iio/buffer.h>
+#include <linux/iio/trigger_consumer.h>
+#include <linux/iio/triggered_buffer.h>
 /* Regmap support */
 #include <linux/regmap.h>
 
@@ -187,6 +190,54 @@ static const struct regmap_config adi_emu_regmap_config = {
 	.max_register = 0x8, /* highest register address */
 };
 
+/* This function is called for every trigger event that occurs
+* Software trigger - sysfs write
+*/
+static irqreturn_t adi_emu_trigger_handler(int irq, void *p)
+{
+	struct iio_poll_func *pf = p;
+	struct iio_dev *indio_dev = pf->indio_dev;
+	struct adi_emu_priv *priv = iio_priv(indio_dev);
+	unsigned int high, low;
+	u16 buf[2];
+	int i = 0, ret;
+
+	ret = regmap_write(priv->regmap, REG_CNVST, CNVST);
+	if (ret)
+		return ret;
+	if (*indio_dev->active_scan_mask & BIT(0)) {
+		ret = regmap_read(priv->regmap,
+			REG_CH0_DATA_HIGH, &high);
+		if (ret)
+			return ret;
+		ret = regmap_read(priv->regmap,
+			REG_CH0_DATA_LOW, &low);
+		if (ret)
+			return ret;
+		buf[i++] = (high << 8) | low;
+	}
+	if (*indio_dev->active_scan_mask & BIT(1)) {
+		ret = regmap_read(priv->regmap,
+			REG_CH1_DATA_HIGH, &high);
+		if (ret)
+			return ret;
+		ret = regmap_read(priv->regmap,
+			REG_CH1_DATA_LOW, &low);
+		if (ret)
+			return ret;
+		buf[i] = (high << 8) | low;
+	}
+
+	/* push the data to the buffers - making it available to userspace*/
+	iio_push_to_buffers(indio_dev, buf);
+
+	/* finish processing the triggers*/
+	iio_trigger_notify_done(indio_dev->trig);
+
+	/* interrupt has been handled*/
+	return IRQ_HANDLED;
+}
+
 /*
 * This device (ADC) has 2 input voltage channel (voltage measurement channels)
 * Each channel has 1 attribute (raw) and 1 shared attribute (enable)
@@ -203,6 +254,17 @@ static const struct iio_chan_spec adi_emu_channels[] = {
 		.output = 0, /* Channel is output. */
 		.indexed = 1, /* Specify the channel has a numerical index. */
 		.channel = 0, /* Index of the channel */
+		/* Meta information associated with a channel reading placed in
+		* buffer is called a scan element.
+		*/
+		.scan_index = 0, /* Index of the channel in scan mask */
+		.scan_type = {
+			.sign = 'u', /* Unsigned */
+			.realbits = 12, /* 12 bits */
+			.storagebits = 16, /* 16 bits */
+			.shift = 0, /* No shift */
+			.endianness = IIO_LE, /* Endianness - Little */
+		},
 	},
 	{
 		.type = IIO_VOLTAGE,
@@ -211,6 +273,14 @@ static const struct iio_chan_spec adi_emu_channels[] = {
 		.output = 0, 
 		.indexed = 1,
 		.channel = 1, 
+		.scan_index = 1,
+		.scan_type = {
+			.sign = 'u',
+			.realbits = 16,
+			.storagebits = 12,
+			.shift = 0,
+			.endianness = IIO_LE,
+		},
 	}
 };
 
@@ -236,6 +306,15 @@ static int adi_emu_probe(struct spi_device *spi)
 	indio_dev->num_channels = ARRAY_SIZE(adi_emu_channels);
 	indio_dev->info = &adi_emu_info;
 
+	/* set up an IIO device with a triggered buffer
+	* NULL - for trigger
+	* adi_emu_trigger_handler - handler 
+	* NULL- buffer setup operations pre/post 
+	Note that no trigger is set at this time
+	It can be set after device setup through sysfs trigger
+	*/
+	devm_iio_triggered_buffer_setup(&spi->dev, indio_dev, NULL, 
+					&adi_emu_trigger_handler, NULL);
 	/*  register a device with the IIO subsystem */
 	return devm_iio_device_register(&spi->dev, indio_dev);
 }
